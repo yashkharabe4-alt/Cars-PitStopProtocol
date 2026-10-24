@@ -1,0 +1,110 @@
+Theme: Beyond the Screen - Enter. Solve.
+Escape.
+
+Event Name: TechFlix
+
+ Round 1. Inside Out -- "Debug the
+
+Mind"
+
+This could be really fun and different.
+Theme: The central control system of the mind has malfunctioned. Teams must restore
+different systems.
+
+Phase 1 -- Memory
+
+Teams are shown technical information/code/data for a limited time.
+Then it disappears.
+They answer questions based on what they remember.
+
+Phase 2 -- Logic
+
+They receive conflicting instructions and must determine the correct sequence.
+
+Phase 3 -- Core Memory
+
+They receive several outputs from the previous phases and use them to reconstruct the final
+"core memory."
+Tech: Memory + logic + pattern recognition
+Difficulty: Easy
+
+Round 2. Cars -- "Pit Stop Protocol"
+This would be much more fun than a normal coding round.
+
+Phase 1 -- Qualifying
+
+Technical MCQs determine starting position.
+
+Phase 2 -- Pit Stop
+
+Teams receive buggy code representing a car's systems:
+Fuel
+Brake
+Engine
+Temperature
+Speed
+They must identify and fix faults.
+
+Phase 3 -- Final Race
+
+Each correctly solved technical problem moves their virtual car forward.
+First team to finish wins.
+Tech: Debugging + logic + basic programming
+
+Round 3. Finding Nemo -- "Find the
+
+Data"
+
+This can be made into a data-search challenge.
+Nemo is lost somewhere inside a huge dataset.
+
+Phase 1 -- Search
+
+Teams receive a large dataset and clues.
+They have to locate Nemo's record.
+       Phase 2 -- Filter
+
+        Multiple conditions narrow down the possibilities.
+
+        Example:
+
+                Age > 18
+                Location = Sydney
+                ID begins with 47
+
+       Phase 3 -- Rescue
+
+        The final record contains a hidden code required to complete the challenge.
+
+        Tech: Excel / SQL / Python filtering
+
+        Very beginner-friendly.
+
+ Final Round. How To Train Your
+        Dragon
+
+         Teams face a large digital dragon with a fixed amount of health or XP. The only way to
+                  damage the dragon is by solving programming challenges.
+
+         Different difficulty levels deal different amounts of damage. For example:
+         Easy LeetCode  2 XP damage
+
+                   Medium LeetCode  5 XP damage
+                   Hard LeetCode  7 XP damage
+                   Extreme Challenge  10 XP damage
+         Teams can choose whether to solve multiple easier problems or take the risk of attempting a
+                  harder challenge for significantly more damage.
+         The dragon can have a large health pool, such as 100 XP, and teams continuously attack it
+                  until one team reduces its health to zero.
+         The first team to defeat the dragon wins.
+
+Evaluation Method:
+Participants can register for any / all of the first three rounds.
+Top 10 participants from each of the first three rounds will be selected for Final round.
+
+Top 3 winners will be chosen from final round who will receive the prize money (1st place - 7k, 2nd
+        place - 5k, 3rd place - 3k)
+
+First two rounds will take place on first day 29th Oct. Third round and final round will be conducted on
+        2nd day 30th Oct.
+

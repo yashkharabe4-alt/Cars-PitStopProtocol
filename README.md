@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Pit Stop Protocol
 
 Browser-based 3D racing and programming challenge game for the TechFlix event. The repository was empty before this implementation, so this is the initial application foundation.
@@ -39,3 +40,7 @@ The server owns the scheduled start, question assignment, answer validation, and
 ## Status
 
 Implementation source is present. Dependency installation, browser play-through, multi-session tests, persistence restart test, and export validation remain to be run in an environment with npm and a browser. This shell had Node.js available but no npm executable, so those runtime checks could not be completed here.
+=======
+# Cars-PitStopProtocol
+AI-powered racing quiz game with real-time scoring, intelligent traffic simulation, and Excel-compatible score tracking. 🏎️
+>>>>>>> c02100629f04064557baeaaf537fc003dd5da4ce

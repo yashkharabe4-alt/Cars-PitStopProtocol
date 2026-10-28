@@ -16,9 +16,9 @@ Open <http://localhost:3001>.
 ## Deploy on Vercel + Supabase
 
 1. Create a Supabase project and run the full `supabase/schema.sql` script in **SQL Editor**.
-2. In Supabase **Project Settings → API**, copy the Project URL and anon/publishable key. Put them in `public/supabase-config.js`; the anon key is safe for browser use because application tables have RLS enabled and no anon policies.
+2. In Supabase **Project Settings → API Keys**, copy the Project URL and publishable key.
 3. In Vercel, import this GitHub repository as a project. Keep the project root at the repository root; no custom build command is needed.
-4. In Vercel **Settings → Environment Variables**, set `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, and `ADMIN_TOKEN`. Use Supabase's new secret key (or legacy service-role key if that's what your project shows). Optionally set `RACE_DURATION_SECONDS` (default 7200). The secret key and admin token must remain private and must never be added to `public/supabase-config.js`.
+4. In Vercel **Settings → Environment Variables**, set `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, and `ADMIN_TOKEN`. Use Supabase's new secret key (or legacy service-role key if that's what your project shows). Optionally set `RACE_DURATION_SECONDS` (default 7200). The API exposes only the publishable key to the website; keep the secret key and admin token private.
 5. Deploy, open the website, and verify the status indicator reaches **LIVE**. Enter the admin token in Race Control to unlock organizer controls; Excel/CSV downloads unlock after the race ends.
 
 The Vercel API stores race timestamps and participant progress in Supabase. No always-on Node process or local SQLite disk is used in production. Supabase Realtime sends race updates to players. When `ends_at` is reached, the next API request finalizes the race; the race state endpoint and Realtime startup reconcile an expired event if no API request arrived at the exact deadline.

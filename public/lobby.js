@@ -1,7 +1,5 @@
 (() => {
-  const supabaseUrl = window.PITSTOP_SUPABASE_URL || '';
-  const supabaseKey = window.PITSTOP_SUPABASE_ANON_KEY || '';
-  const supabase = window.supabase?.createClient && supabaseUrl && supabaseKey ? window.supabase.createClient(supabaseUrl, supabaseKey) : null;
+  let supabase = null;
   let raceChannel = null;
   const api = async (route, { method = 'GET', body, participantId = sessionStorage.getItem('pitstopParticipantId'), token } = {}) => {
     const headers = { 'Content-Type': 'application/json' };
@@ -16,7 +14,13 @@
     return result;
   };
   window.pitstopApi = api;
+  const supabaseReady = api('config', { participantId: null }).then(config => {
+    if (!window.supabase?.createClient) throw new Error('Supabase browser library did not load.');
+    supabase = window.supabase.createClient(config.supabaseUrl, config.publishableKey);
+    return supabase;
+  }).catch(error => { console.error('Supabase setup:', error.message); return null; });
   window.pitstopSubscribeRace = async raceId => {
+    await supabaseReady;
     if (!supabase || !raceId) return;
     if (raceChannel) await supabase.removeChannel(raceChannel);
     raceChannel = supabase.channel(`race:${raceId}`).on('broadcast', { event: '*' }, ({ event, payload }) => {
@@ -202,7 +206,7 @@
   if (savedRaceId && sessionStorage.getItem('pitstopParticipantId')) window.pitstopSubscribeRace(savedRaceId);
   api('state').then(handleState).catch(err => { $('adminMessage').textContent = err.message || 'Could not reach the API. Configure Supabase first.'; });
   setInterval(() => { api('state').then(handleState).catch(err => console.warn('Could not refresh race state:', err)); }, 15000);
-  if (!supabase) { const el=$('connection'); if(el){el.textContent='SETUP REQUIRED';el.classList.remove('online');} }
+  supabaseReady.then(client => { if (!client) { const el=$('connection'); if(el){el.textContent='SETUP REQUIRED';el.classList.remove('online');} } });
   window.addEventListener('error', event => { if (event.message && !qualified) error.textContent = `Game display error: ${event.message}.`; });
   window.addEventListener('unhandledrejection', event => { const message=event.reason?.message||String(event.reason||'3D module failed to load'); if(!qualified) error.textContent=`Game startup error: ${message}.`; console.error('Pit Stop Protocol startup error:',event.reason); });
 })();

@@ -1,2 +1,0 @@
-window.PITSTOP_SUPABASE_URL = '';
-window.PITSTOP_SUPABASE_ANON_KEY = '';

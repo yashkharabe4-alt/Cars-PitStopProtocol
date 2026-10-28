@@ -1,5 +1,34 @@
 (() => {
-  const socket = window.pitstopSocket = io();
+  const supabaseUrl = window.PITSTOP_SUPABASE_URL || '';
+  const supabaseKey = window.PITSTOP_SUPABASE_ANON_KEY || '';
+  const supabase = window.supabase?.createClient && supabaseUrl && supabaseKey ? window.supabase.createClient(supabaseUrl, supabaseKey) : null;
+  let raceChannel = null;
+  const api = async (route, { method = 'GET', body, participantId = sessionStorage.getItem('pitstopParticipantId'), token } = {}) => {
+    const headers = { 'Content-Type': 'application/json' };
+    if (participantId) headers['X-Participant-Id'] = participantId;
+    const participantToken = sessionStorage.getItem('pitstopSessionToken');
+    if (participantToken) headers['X-Participant-Token'] = participantToken;
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch(`/api/${route}`, { method, headers, body: body ? JSON.stringify(body) : undefined });
+    const type = response.headers.get('content-type') || '';
+    const result = type.includes('application/json') ? await response.json() : await response.text();
+    if (!response.ok) throw new Error(result?.error || result || `Request failed (${response.status})`);
+    return result;
+  };
+  window.pitstopApi = api;
+  window.pitstopSubscribeRace = async raceId => {
+    if (!supabase || !raceId) return;
+    if (raceChannel) await supabase.removeChannel(raceChannel);
+    raceChannel = supabase.channel(`race:${raceId}`).on('broadcast', { event: '*' }, ({ event, payload }) => {
+      if (event === 'state') window.dispatchEvent(new CustomEvent('pitstop:state', { detail: payload }));
+      else if (event === 'race:open') window.dispatchEvent(new CustomEvent('pitstop:race:open', { detail: payload }));
+      else if (event === 'driverStart') window.dispatchEvent(new CustomEvent('pitstop:driverStart', { detail: payload }));
+      else if (event === 'race:ended') window.dispatchEvent(new CustomEvent('pitstop:race:ended', { detail: payload }));
+      else if (event === 'race:final') window.dispatchEvent(new CustomEvent('pitstop:race:final', { detail: payload }));
+    }).subscribe(status => {
+      const el = $('connection'); if (el) { el.textContent = status === 'SUBSCRIBED' ? 'LIVE' : 'CONNECTING'; el.classList.toggle('online', status === 'SUBSCRIBED'); }
+    });
+  };
   const $ = id => document.getElementById(id);
   const button = $('joinButton'), error = $('joinError'), nameInput = $('teamName'), leadName = $('leadName'), leadPhone = $('leadPhone');
   let lastFinalBoard = null;
@@ -59,19 +88,17 @@
     $('quizOverlay').hidden = true;
     $('loadingOverlay').hidden = false;
     $('loadingMessage').textContent = 'Submitting your qualifying result…';
-    socket.timeout(8000).emit('driver:qualify', { score }, (timeoutErr, result) => {
-      if (timeoutErr || result?.error) {
+    api('qualify', { method: 'POST', body: { score, raceId: sessionStorage.getItem('pitstopRaceId') } }).then(result => {
+      qualified = true;
+      if (result.waiting) $('loadingMessage').textContent = result.started ? 'QUALIFIED · YOUR RACE IS STARTING' : 'QUALIFIED · WAITING FOR THE ORGANIZER TO START THE RACE';
+    }).catch(err => {
         submittingQualification = false;
         $('loadingOverlay').hidden = true;
         $('quizOverlay').hidden = false;
         $('quizSubmit').disabled = false;
         quizIndex = quiz.length - 1;
         showQuestion();
-        $('quizFeedback').textContent = result?.error || 'Server did not respond. Select LOCK ANSWER to retry submitting your score.';
-        return;
-      }
-      qualified = true;
-      if (result.waiting) $('loadingMessage').textContent = result.started ? 'QUALIFIED · YOUR RACE IS STARTING' : 'QUALIFIED · WAITING FOR THE ORGANIZER TO START THE RACE';
+        $('quizFeedback').textContent = err.message || 'Server did not respond. Select LOCK ANSWER to retry submitting your score.';
     });
   }
   function join() {
@@ -80,20 +107,20 @@
     if (!leadName.value.trim()) { error.textContent = 'Enter your team lead name.'; leadName.focus(); return; }
     if (leadPhone.value.replace(/\D/g, '').length < 7) { error.textContent = 'Enter a valid team lead phone number.'; leadPhone.focus(); return; }
     button.disabled = true; button.textContent = 'ENTERING GARAGE…';
-    socket.timeout(8000).emit('join', { teamName: name, leadName: leadName.value.trim(), phone: leadPhone.value.trim(), carColor: selectedColor }, (timeoutErr, result) => {
+    api('join', { method: 'POST', body: { teamName: name, leadName: leadName.value.trim(), phone: leadPhone.value.trim(), carColor: selectedColor } }).then(async result => {
       button.disabled = false; button.textContent = 'ENTER GARAGE ↗';
-      if (timeoutErr) { error.textContent = 'No server response. Check npm start and refresh.'; return; }
-      if (result?.error) { error.textContent = result.error; return; }
       sessionStorage.setItem('pitstopParticipantId', result.participantId);
+      sessionStorage.setItem('pitstopSessionToken', result.sessionToken);
       sessionStorage.setItem('pitstopRaceId', result.raceId);
+      await window.pitstopSubscribeRace(result.raceId);
       if (result.raceStatus === 'running') {
         button.disabled = true; button.textContent = 'REJOINING RACE…';
         window.dispatchEvent(new CustomEvent('pitstop:joined', { detail: result }));
         $('joinOverlay').style.display = 'none'; $('app').classList.remove('garage-mode');
-        socket.timeout(8000).emit('driver:resume', { participantId: result.participantId }, (resumeTimeout, resumed) => {
-          if (resumeTimeout || resumed?.error) { error.textContent = resumed?.error || 'Could not reconnect to this race.'; button.disabled = false; button.textContent = 'ENTER THE GARAGE ↗'; $('joinOverlay').style.display = 'grid'; return; }
+        api('resume', { method: 'POST', body: { participantId: result.participantId, raceId: result.raceId } }).then(resumed => {
           $('repairPanel').style.display = 'block'; window.dispatchEvent(new CustomEvent('pitstop:resume', { detail: resumed }));
           if (resumed.status === 'ready') { $('quizOverlay').hidden = false; quizIndex = 0; score = 0; showQuestion(); }
+        }).catch(err => { error.textContent = err.message || 'Could not reconnect to this race.'; button.disabled = false; button.textContent = 'ENTER THE GARAGE ↗'; $('joinOverlay').style.display = 'grid';
         });
         return;
       }
@@ -108,7 +135,7 @@
         window.dispatchEvent(new CustomEvent('pitstop:showroom'));
         button.disabled = false; button.textContent = 'ENTER THE GARAGE ↗';
       }, 1400);
-    });
+    }).catch(err => { button.disabled = false; button.textContent = 'ENTER GARAGE ↗'; error.textContent = err.message || 'Could not join. Check Supabase setup and try again.'; });
   }
   window.addEventListener('pointermove', event => {
     const x = `${Math.round((event.clientX / innerWidth - .5) * 20)}px`;
@@ -117,7 +144,7 @@
     $('showroomOverlay').style.setProperty('--look-y', y);
   });
   button.addEventListener('click', join); [nameInput, leadName, leadPhone].forEach(input => input.addEventListener('keydown', e => { if (e.key === 'Enter') join(); }));
-  document.querySelectorAll('.showroom-colors button').forEach(choice => choice.addEventListener('click', () => { selectedColor = choice.dataset.color; document.documentElement.style.setProperty('--team-color', selectedColor); document.querySelectorAll('.showroom-colors button').forEach(b => b.classList.toggle('selected', b === choice)); window.dispatchEvent(new CustomEvent('pitstop:color', { detail: { color: selectedColor } })); socket.emit('vehicle:color', { carColor: selectedColor }); }));
+  document.querySelectorAll('.showroom-colors button').forEach(choice => choice.addEventListener('click', () => { selectedColor = choice.dataset.color; document.documentElement.style.setProperty('--team-color', selectedColor); document.querySelectorAll('.showroom-colors button').forEach(b => b.classList.toggle('selected', b === choice)); window.dispatchEvent(new CustomEvent('pitstop:color', { detail: { color: selectedColor } })); api('color', { method: 'POST', body: { carColor: selectedColor } }).catch(err => console.warn('Could not save car color:', err)); }));
   $('showroomContinue').addEventListener('click', () => { $('showroomOverlay').hidden = true; $('repairPanel').style.display = 'block'; $('quizOverlay').hidden = false; quizIndex = 0; score = 0; clearInterval(answerLockTimer); answerLockTimer = null; eliminatedAnswers.forEach(set => set.clear()); $('quizSubmit').disabled = false; $('quizSubmit').textContent = 'LOCK ANSWER ↗'; showQuestion(); window.dispatchEvent(new CustomEvent('pitstop:track')); });
   $('quizSubmit').addEventListener('click', submitAnswer);
   $('quizOptions').addEventListener('keydown', e => { if (e.key === 'Enter') submitAnswer(); });
@@ -126,9 +153,8 @@
   const adminAction = (event, message) => {
     const token = $('adminToken').value.trim();
     $('adminMessage').textContent = message;
-    socket.timeout(8000).emit(event, { token }, (timeoutErr, result) => {
-      $('adminMessage').textContent = timeoutErr ? 'No server response. Check that the server is running.' : result?.error || result?.message || 'Command completed.';
-    });
+    const route = event === 'host:start' ? 'admin/start' : 'admin/stop';
+    api(route, { method: 'POST', token }).then(result => { $('adminMessage').textContent = result.message || 'Command completed.'; }).catch(err => { $('adminMessage').textContent = err.message; });
   };
   $('adminStart').addEventListener('click', () => adminAction('host:start', 'Starting race…'));
   $('adminStop').addEventListener('click', () => adminAction('host:stop', 'Ending the event…'));
@@ -139,11 +165,11 @@
     adminUnlocked=false;
     exportButtons.forEach(button=>button.disabled=true);
     if(!token){$('adminMessage').textContent='Enter the admin token to unlock exports.';return;}
-    socket.timeout(8000).emit('host:validate',{token},(timeoutErr,result)=>{
-      adminUnlocked=Boolean(!timeoutErr&&result?.ok);
-      $('adminMessage').textContent=timeoutErr?'Server did not respond while validating the token.':result?.error||'Admin token accepted. Exports are unlocked when the race ends.';
+    api('admin/validate',{method:'POST',token}).then(result=>{
+      adminUnlocked=Boolean(result.ok);
+      $('adminMessage').textContent='Admin token accepted. Exports are unlocked when the race ends.';
       exportButtons.forEach(button=>button.disabled=!adminUnlocked||!raceIsFinished);
-    });
+    }).catch(err=>{adminUnlocked=false;$('adminMessage').textContent=err.message;});
   }
   let raceIsFinished = false;
   $('adminToken').addEventListener('input',validateAdminToken);
@@ -151,12 +177,13 @@
   const downloadResults = async format => {
     const token=$('adminToken').value.trim();if(!token||!adminUnlocked){$('adminMessage').textContent='Enter and validate the admin token first.';return;}
     $('adminMessage').textContent='Preparing '+format.toUpperCase()+' results…';
-    try{const response=await fetch('/api/results.'+format,{headers:{Authorization:'Bearer '+token}});if(!response.ok){$('adminMessage').textContent=await response.text();return;}const blob=await response.blob(),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=format==='xlsx'?'pitstop-results.xlsx':'pitstop-results.csv';document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);$('adminMessage').textContent=format.toUpperCase()+' results downloaded.';}catch(err){$('adminMessage').textContent='Could not download results: '+err.message;}
+    try{const response=await fetch('/api/results.'+format,{headers:{Authorization:'Bearer '+token}});if(!response.ok){const data=await response.json().catch(()=>null);$('adminMessage').textContent=data?.error||'Could not download results.';return;}const blob=await response.blob(),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=format==='xlsx'?'pitstop-results.xlsx':'pitstop-results.csv';document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);$('adminMessage').textContent=format.toUpperCase()+' results downloaded.';}catch(err){$('adminMessage').textContent='Could not download results: '+err.message;}
   };
   $('exportExcel').addEventListener('click',()=>downloadResults('xlsx'));
   $('exportCsv').addEventListener('click',()=>downloadResults('csv'));
-  socket.on('state', data => {
+  const handleState = data => {
     const race = data?.race;
+    if (race?.id && race.id !== subscribedRaceId) { subscribedRaceId = race.id; window.pitstopSubscribeRace(race.id); }
     raceIsFinished=race?.status==='finished';
     if(raceIsFinished)lastFinalBoard={raceId:race.id,race};else lastFinalBoard=null;
     if (race) {
@@ -166,12 +193,16 @@
       $('adminStop').disabled = race.status !== 'running';
       $('exportExcel').disabled=!adminUnlocked||!raceIsFinished;$('exportCsv').disabled=!adminUnlocked||!raceIsFinished;
     }
-  });
-  socket.on('connect', () => { const el = $('connection'); if (el) { el.textContent = 'LIVE'; el.classList.add('online'); } $('adminMessage').textContent = 'Connected to race server.'; });
-  socket.on('disconnect', () => { const el = $('connection'); if (el) { el.textContent = 'OFFLINE'; el.classList.remove('online'); } });
-  socket.on('race:open', () => { if (qualified) $('loadingMessage').textContent = 'RACE OPEN · YOUR START IS COMING UP'; });
-  socket.on('race:final', data => { sessionStorage.removeItem('pitstopParticipantId');sessionStorage.removeItem('pitstopRaceId');raceIsFinished=true;lastFinalBoard = data; displayOfficialResults({race:{status:'finished'}}); $('raceStatusTitle').textContent='Race ended'; exportButtons.forEach(button=>button.disabled=!adminUnlocked); });
-  socket.on('race:reset',()=>{sessionStorage.removeItem('pitstopParticipantId');sessionStorage.removeItem('pitstopRaceId');});
+  };
+  window.addEventListener('pitstop:state', event => handleState(event.detail));
+  window.addEventListener('pitstop:race:open', () => { if (qualified) $('loadingMessage').textContent = 'RACE OPEN · YOUR START IS COMING UP'; });
+  window.addEventListener('pitstop:race:final', event => { raceIsFinished=true;lastFinalBoard = event.detail; displayOfficialResults({race:{status:'finished'}}); $('raceStatusTitle').textContent='Race ended'; exportButtons.forEach(button=>button.disabled=!adminUnlocked); });
+  let subscribedRaceId = null;
+  const savedRaceId = sessionStorage.getItem('pitstopRaceId');
+  if (savedRaceId && sessionStorage.getItem('pitstopParticipantId')) window.pitstopSubscribeRace(savedRaceId);
+  api('state').then(handleState).catch(err => { $('adminMessage').textContent = err.message || 'Could not reach the API. Configure Supabase first.'; });
+  setInterval(() => { api('state').then(handleState).catch(err => console.warn('Could not refresh race state:', err)); }, 15000);
+  if (!supabase) { const el=$('connection'); if(el){el.textContent='SETUP REQUIRED';el.classList.remove('online');} }
   window.addEventListener('error', event => { if (event.message && !qualified) error.textContent = `Game display error: ${event.message}.`; });
   window.addEventListener('unhandledrejection', event => { const message=event.reason?.message||String(event.reason||'3D module failed to load'); if(!qualified) error.textContent=`Game startup error: ${message}.`; console.error('Pit Stop Protocol startup error:',event.reason); });
 })();

@@ -4,25 +4,24 @@ A browser-based 3D racing and quiz prototype for the TechFlix event.
 
 ## Run locally
 
-Requires Node.js 20 or later and npm. In PowerShell:
+Requires Node.js 20 or later and npm. Create a Supabase project, run [supabase/schema.sql](supabase/schema.sql) in its SQL Editor, and copy the Project URL and anon/publishable key into `public/supabase-config.js`. Create `.env` from `.env.example` and set the Supabase service role key plus a unique admin token. Then run:
 
 ```powershell
-Copy-Item .env.example .env
 npm install
 npm start
 ```
 
-Open <http://localhost:3001> (or the port configured in `.env`).
+Open <http://localhost:3001>.
 
-## Deploy to Render
+## Deploy on Vercel + Supabase
 
-This project includes a `render.yaml` Blueprint. In Render, choose **New → Blueprint**, connect this GitHub repository, and deploy the `main` branch. The Blueprint installs dependencies with `npm ci`, starts the Node server, configures `/api/health` as the health check, generates an `ADMIN_TOKEN`, and stores SQLite at `/var/data/pitstop.sqlite` on a persistent disk.
+1. Create a Supabase project and run the full `supabase/schema.sql` script in **SQL Editor**.
+2. In Supabase **Project Settings → API**, copy the Project URL and anon/publishable key. Put them in `public/supabase-config.js`; the anon key is safe for browser use because application tables have RLS enabled and no anon policies.
+3. In Vercel, import this GitHub repository as a project. Keep the project root at the repository root; no custom build command is needed.
+4. In Vercel **Settings → Environment Variables**, set `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, and `ADMIN_TOKEN`. Use Supabase's new secret key (or legacy service-role key if that's what your project shows). Optionally set `RACE_DURATION_SECONDS` (default 7200). The secret key and admin token must remain private and must never be added to `public/supabase-config.js`.
+5. Deploy, open the website, and verify the status indicator reaches **LIVE**. Enter the admin token in Race Control to unlock organizer controls; Excel/CSV downloads unlock after the race ends.
 
-The included setup uses a paid web service and a persistent disk because race results must survive restarts and deployments. Render's free web services have ephemeral filesystems and can spin down while idle, so they are unsuitable for a live event that must retain SQLite records. The app uses one Socket.IO server instance and SQLite on a single persistent disk; keep it at one instance. Render supports WebSockets, and the app binds to Render's `PORT` on `0.0.0.0`.
-
-After deployment, copy the generated `ADMIN_TOKEN` from the service's environment settings into Race Control. Keep it private. Do not reuse the local `.env` token. Add a custom domain in Render if desired. For reliable event data, download the Excel results after the event and keep a separate backup; a persistent disk protects data across ordinary deploys and restarts but is not a substitute for a backup.
-
-The deployment health check is available at `/api/health`.
+The Vercel API stores race timestamps and participant progress in Supabase. No always-on Node process or local SQLite disk is used in production. Supabase Realtime sends race updates to players. When `ends_at` is reached, the next API request finalizes the race; the race state endpoint and Realtime startup reconcile an expired event if no API request arrived at the exact deadline.
 
 ## Player flow
 
@@ -33,11 +32,11 @@ The deployment health check is available at `/api/health`.
 
 ## Organizer controls
 
-Keep the Node server running in the VS Code terminal with `npm start`; this terminal is for starting/stopping the server process, not controlling each race. Use the **Race Control** panel in the browser for event operations. Enter the admin token (`ADMIN_TOKEN` in `.env`) to unlock the Excel and CSV export buttons after the event ends. The token is validated by the server and should be kept private. For production, set a strong unique token in the hosting environment. The server binds to the `PORT` supplied by the host, falling back to 3000.
+Use the **Race Control** panel in the browser for event operations. Enter the admin token (`ADMIN_TOKEN` in `.env` locally or the Vercel environment setting in production) to unlock Excel/CSV exports after the event ends. Keep this token private.
 
 To end the server itself, focus the VS Code terminal running `npm start` and press **Ctrl+C**. That stops the website/game server until `npm start` is run again.
 
-After a race ends, entering the garage again automatically creates a fresh lobby, while preserving prior records in SQLite.
+After a race ends, entering the garage again creates a fresh lobby while preserving previous results in Supabase.
 
 ## Controls
 
@@ -45,10 +44,10 @@ After a race ends, entering the garage again automatically creates a fresh lobby
 - S / Down: brake
 - A / Left and D / Right: steer
 
-Car faults show a single repair question. A wrong answer cannot be retried and limits the car to 40 km/h.
+Car faults show a single repair question. After a wrong answer, the player sees the correct answer, waits 25 seconds in safe mode at 5 km/h, then continues with a 40 km/h speed cap.
 
 ## Data and limitations
 
-Race records are stored in `./data/pitstop.sqlite`. The protected Excel and CSV exports include each participant's race time in seconds and milliseconds. Three.js and fonts load from public CDNs, so the browser needs internet access for those assets.
+Race records are stored in Supabase Postgres. The protected Excel and CSV exports include each participant's race time in seconds and milliseconds. Three.js, Supabase JS, and fonts load from public CDNs, so the browser needs internet access for those assets.
 
-Vehicle positions and checkpoints are simulated in the browser. Finish events are client-reported, so this prototype is not cheat-proof and has not been load-tested for a large event. Use a persistent Node server for multi-device sessions.
+Vehicle positions and checkpoints are simulated in the browser. Finish events are client-reported, so this prototype is not cheat-proof and has not been load-tested for a large event.

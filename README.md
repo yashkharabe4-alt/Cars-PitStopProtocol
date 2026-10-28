@@ -16,6 +16,7 @@ Open <http://localhost:3001> (or the port configured in `.env`).
 
 ## Deploy to Render
 
+ADMIN TOKEN: replace-with-a-long-random-token
 This project includes a `render.yaml` Blueprint. In Render, choose **New → Blueprint**, connect this GitHub repository, and deploy the `main` branch. The Blueprint installs dependencies with `npm ci`, starts the Node server, configures `/api/health` as the health check, generates an `ADMIN_TOKEN`, and stores SQLite at `/var/data/pitstop.sqlite` on a persistent disk.
 
 The included setup uses a paid web service and a persistent disk because race results must survive restarts and deployments. Render's free web services have ephemeral filesystems and can spin down while idle, so they are unsuitable for a live event that must retain SQLite records. The app uses one Socket.IO server instance and SQLite on a single persistent disk; keep it at one instance. Render supports WebSockets, and the app binds to Render's `PORT` on `0.0.0.0`.

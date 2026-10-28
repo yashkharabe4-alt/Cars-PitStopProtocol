@@ -39,6 +39,8 @@
   function displayOfficialResults(data) {
     if (data?.race?.status !== 'finished') return;
     $('finishPanel').hidden = false;
+    $('finishPanel').classList.remove('personal-result');
+    $('finishCaption').textContent = 'RACE STATUS · FINAL STANDINGS';
     const results = Array.isArray(data.race.results) ? data.race.results : [];
     $('finishMessage').textContent = results.length ? 'Final score, race time, and repair answers for every driver.' : 'Results are not available yet. Refresh shortly to load the final standings.';
     $('finishResults').innerHTML = results.map(row => {
@@ -51,9 +53,7 @@
   window.addEventListener('pitstop:race:ended', event => {
     const result = event.detail;
     if (!result || result.participantId !== sessionStorage.getItem('pitstopParticipantId')) return;
-    $('finishPanel').hidden = false;
-    $('finishMessage').textContent = 'Your race result';
-    $('finishResults').innerHTML = `<li><span class="finish-rank">✓</span><span class="finish-driver">${String(result.name || 'Your team').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}<small>FINISHED · ${(result.elapsedMs / 1000).toFixed(1)} sec · ✓ ${result.correctAnswers} correct · ✕ ${result.incorrectAnswers} incorrect</small></span><strong>${Number(result.score).toLocaleString()} pts</strong></li>`;
+    window.showPitstopPersonalResult?.(result);
   });
   const quiz = [
     ['A car travels at 72 km/h for 25 minutes. How far does it travel?', ['18 km', '24 km', '30 km', '36 km'], 2],
@@ -169,6 +169,7 @@
   $('quizSubmit').addEventListener('click', submitAnswer);
   $('quizOptions').addEventListener('keydown', e => { if (e.key === 'Enter') submitAnswer(); });
   $('adminOpen').addEventListener('click', () => { $('adminOverlay').hidden = false; });
+  $('finishRaceControl').addEventListener('click', () => { $('adminOverlay').hidden = false; });
   $('adminClose').addEventListener('click', () => { $('adminOverlay').hidden = true; });
   const adminAction = (event, message) => {
     const token = $('adminToken').value.trim();
@@ -209,7 +210,7 @@
     if (race) {
       $('adminMessage').textContent = `Race status: ${String(race.status).toUpperCase()}`;
       $('raceStatusTitle').textContent=race.status==='finished'?'Race ended':race.status==='running'?'Race in progress':'Awaiting start';
-      if (race.status === 'finished') displayOfficialResults({race});
+      if (race.status === 'finished') { displayOfficialResults({race}); window.showPitstopFinishedGarage?.(); }
       $('adminStart').disabled = race.status !== 'lobby';
       $('adminStop').disabled = race.status !== 'running';
       $('exportExcel').disabled=!adminUnlocked||!raceIsFinished;$('exportCsv').disabled=!adminUnlocked||!raceIsFinished;
@@ -217,7 +218,7 @@
   };
   window.addEventListener('pitstop:state', event => handleState(event.detail));
   window.addEventListener('pitstop:race:open', () => { if (qualified) $('loadingMessage').textContent = 'RACE OPEN · YOUR START IS COMING UP'; });
-  window.addEventListener('pitstop:race:final', event => { raceIsFinished=true;lastFinalBoard = event.detail; api('state').then(displayOfficialResults).catch(err => { $('finishMessage').textContent=`Could not load final results: ${err.message}`; }); $('raceStatusTitle').textContent='Race ended'; exportButtons.forEach(button=>button.disabled=!adminUnlocked); });
+  window.addEventListener('pitstop:race:final', event => { raceIsFinished=true;lastFinalBoard = event.detail; window.showPitstopFinishedGarage?.(); api('state').then(displayOfficialResults).catch(err => { $('finishMessage').textContent=`Could not load final results: ${err.message}`; }); $('raceStatusTitle').textContent='Race ended'; exportButtons.forEach(button=>button.disabled=!adminUnlocked); });
   let subscribedRaceId = null;
   const savedRaceId = sessionStorage.getItem('pitstopRaceId');
   if (savedRaceId && sessionStorage.getItem('pitstopParticipantId')) window.pitstopSubscribeRace(savedRaceId);

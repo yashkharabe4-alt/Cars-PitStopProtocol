@@ -124,3 +124,11 @@
 .showroom-error{position:absolute;z-index:6;top:18vh;left:50%;transform:translateX(-50%);width:min(700px,calc(100vw - 30px));padding:16px 20px;background:#240b10;color:#ffe5e5;border:1px solid #f24a4e;font:14px var(--mono);text-align:center;box-shadow:0 12px 40px #000c}
 
 .quiz-option.answer-eliminated{opacity:.38;filter:grayscale(1);cursor:not-allowed;text-decoration:line-through}.quiz-option input:disabled{cursor:not-allowed}.quiz-card button:disabled{opacity:.7;cursor:wait}
+/* Keep Race Control reachable from the finish screen; show the 3D garage behind results. */
+.admin-overlay{z-index:30}
+.finished-garage #showroomOverlay .showroom-card{display:none!important}
+.finish-overlay{background:#08090e9c!important;backdrop-filter:blur(3px)}
+.finish-race-control{display:block;width:100%;margin-top:14px;padding:13px;background:#bd1726;color:#fff;border:1px solid #ed3038;font:800 10px var(--mono);letter-spacing:1px;cursor:pointer}
+.finished-garage .finish-overlay.personal-result .finish-results li{grid-template-columns:minmax(0,1fr)!important;text-align:center}
+.finished-garage .finish-overlay.personal-result .finish-rank{display:none}
+.finished-garage .finish-overlay.personal-result .finish-results li strong{grid-column:1;display:block;margin-top:9px;font:900 34px var(--display);color:#ffd366}

@@ -56,25 +56,25 @@
     window.showPitstopPersonalResult?.(result);
   });
   const quiz = [
-    ['What does this JavaScript print?\nlet x = 1;\nfor (let i = 0; i < 4; i++) x *= 2;\nconsole.log(x + 1);', ['9', '17', '16', '33'], 1],
-    ['A stack performs push(4), push(7), push(2), pop(), pop(). What value is returned by the second pop?', ['4', '7', '2', 'The stack is empty'], 1],
-    ['A queue contains A, B, C. Dequeue once, enqueue D, then dequeue again. Which value is returned?', ['A', 'B', 'C', 'D'], 1],
-    ['Binary search on [3, 7, 11, 15, 19, 23, 27] looks for 19. Using middle index floor((low+high)/2), how many comparisons are made?', ['2', '3', '4', '5'], 1],
-    ['For (i = 0; i < n; i++) { for (j = 0; j < i; j++) { work(); } } What is the time complexity?', ['O(n)', 'O(n log n)', 'O(n²)', 'O(2ⁿ)'], 2],
-    ['A two-sum algorithm stores previously seen values in a hash map. What is its average time complexity for n values?', ['O(1)', 'O(log n)', 'O(n)', 'O(n²)'], 2],
-    ['Given a pointer to a node in a singly linked list, what is the time complexity of inserting a new node immediately after it?', ['O(1)', 'O(log n)', 'O(n)', 'O(n log n)'], 0],
-    ['A recursive function returns 1 for n ≤ 1, otherwise f(n−1) + f(n−2). What does f(4) return?', ['3', '4', '5', '8'], 2],
-    ['Which data structure is best suited for checking whether brackets are correctly nested, such as "{[()]}"?', ['Queue', 'Stack', 'Min-heap', 'Adjacency list'], 1],
-    ['Quicksort always chooses the first element as pivot. What is its worst-case time on an already sorted array?', ['O(log n)', 'O(n)', 'O(n log n)', 'O(n²)'], 3]
+    ['MATH', 'Five pumps fill a tank in 8 minutes. At the same rate, how long would 3 pumps take?', ['10 min', '12 min', '13⅓ min', '15 min'], 2],
+    ['MATH', 'A ₹1,600 item is discounted by 25%, then by another 10%. What is the final price?', ['₹1,080', '₹1,120', '₹1,200', '₹1,260'], 0],
+    ['MATH', 'A runner covers equal distances at 40 km/h and 60 km/h. What is the average speed for the full trip?', ['48 km/h', '50 km/h', '52 km/h', '54 km/h'], 0],
+    ['MATH', 'Solve: 3x − 7 = 2x + 11.', ['x = 4', 'x = 11', 'x = 18', 'x = 22'], 2],
+    ['MATH', 'A bag has 4 red and 3 blue balls. Two balls are drawn without replacement. What is the probability both are red?', ['1/7', '2/7', '3/7', '4/7'], 1],
+    ['MATH', 'Worker A finishes a job in 12 days and worker B in 18 days. Working together at the same rates, how many days will they take?', ['6 days', '7.2 days', '8 days', '15 days'], 1],
+    ['MATH', 'A circular track has radius 7 m. Using π = 22/7, what is its circumference?', ['22 m', '44 m', '49 m', '154 m'], 1],
+    ['DSA', 'What does this Python code print?\nvalues = [3, 6, 9, 12]\nprint(values[1] + values[3])', ['15', '18', '21', '24'], 1],
+    ['DSA', 'An array is [5, 2, 8, 1]. A loop adds the values at indexes 0 and 2. What is the sum?', ['7', '9', '10', '13'], 3],
+    ['DSA', 'A linear search checks [4, 8, 1, 6] from left to right for the value 1. How many values does it compare?', ['1', '2', '3', '4'], 2]
   ];
   let quizIndex = 0, score = 0, qualified = false, submittingQualification = false, answerLockTimer = null, quizStartedAt = 0, quizCompletedAt = 0;
   const eliminatedAnswers = quiz.map(() => new Set());
   let selectedColor = '#e83e32';
   function showQuestion(feedback = '') {
-    const [question, options] = quiz[quizIndex];
-    $('quizProgress').textContent = `QUESTION ${quizIndex + 1} / ${quiz.length}`;
+    const [category, question, options] = quiz[quizIndex];
+    $('quizProgress').textContent = `QUESTION ${quizIndex + 1} / ${quiz.length} · ${category}`;
     $('quizQuestion').textContent = question;
-    $('quizOptions').innerHTML = options.map((option, i) => `<label class="quiz-option${eliminatedAnswers[quizIndex].has(i) ? ' answer-eliminated' : ''}"><input type="radio" name="quizAnswer" value="${i}" ${eliminatedAnswers[quizIndex].has(i) ? 'disabled' : ''}><span>${String.fromCharCode(65 + i)}. ${option}${eliminatedAnswers[quizIndex].has(i) ? ' · ELIMINATED' : ''}</span></label>`).join('');
+    $('quizOptions').innerHTML = options.map((option, i) => `<label class="quiz-option"><input type="radio" name="quizAnswer" value="${i}"><span>${String.fromCharCode(65 + i)}. ${option}</span></label>`).join('');
     $('quizFeedback').textContent = feedback;
   }
   function submitAnswer() {
@@ -82,7 +82,7 @@
     if (quizIndex >= quiz.length) { submitQualification(); return; }
     const selected = document.querySelector('input[name="quizAnswer"]:checked');
     if (!selected) { $('quizFeedback').textContent = 'Select an answer to continue.'; return; }
-    const isCorrect = Number(selected.value) === quiz[quizIndex][2];
+    const isCorrect = Number(selected.value) === quiz[quizIndex][3];
     if (isCorrect) score++;
     quizIndex++;
     if (quizIndex < quiz.length) { showQuestion(isCorrect ? 'Correct! Your answer is recorded.' : 'Incorrect. Your answer is recorded as 0 points.'); return; }

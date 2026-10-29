@@ -26,7 +26,7 @@ The Vercel API stores race timestamps and participant progress in Supabase. No a
 ## Player flow
 
 1. Enter a team or driver name, choose red, blue, or yellow, then confirm the car. The showroom animation transitions into the qualifying quiz.
-2. Players choose their car in the showroom, then answer ten coding and data-structures questions. Each first answer is scored; incorrect answers count as zero and players continue to the next question. The score is out of 100: up to 70 points for correct answers and 30 points for speed, with the speed bonus decreasing to zero over five minutes.
+2. Players choose their car in the showroom, then answer ten qualifying questions: seven aptitude maths questions and three basic data-structures questions. Each first answer is scored; incorrect answers count as zero and players continue to the next question. The score is out of 100: up to 70 points for correct answers and 30 points for speed, with the speed bonus decreasing to zero over five minutes.
 3. The organizer opens **Race Control** at the bottom right and selects **Start Race** when participants are ready. Each driver races their own session independently.
 4. Each driver's elapsed time is saved on finish. Use **End Race** to close the event and mark any unfinished runs as did not finish. The public screen only shows the race status.
 
@@ -44,7 +44,7 @@ After a race ends, entering the garage again creates a fresh lobby while preserv
 - S / Down: brake
 - A / Left and D / Right: steer
 
-Car faults show a single repair question. After a wrong answer, the player sees the correct answer, waits 25 seconds in safe mode at 5 km/h, then continues with a 40 km/h speed cap.
+Car faults show a single repair question. At least 60% of the repair question bank covers basic DSA and arrays. After a wrong answer, the player sees the correct answer, waits 25 seconds in safe mode at 5 km/h, then continues with a 40 km/h speed cap.
 
 ## Data and limitations
 

@@ -132,3 +132,4 @@
 .finished-garage .finish-overlay.personal-result .finish-results li{grid-template-columns:minmax(0,1fr)!important;text-align:center}
 .finished-garage .finish-overlay.personal-result .finish-rank{display:none}
 .finished-garage .finish-overlay.personal-result .finish-results li strong{grid-column:1;display:block;margin-top:9px;font:900 34px var(--display);color:#ffd366}
+#quizQuestion{white-space:pre-wrap;font:11px/1.6 var(--mono);color:#f0eee5;padding:12px;background:#111a20;border:1px solid #ffffff17}

@@ -56,16 +56,16 @@
     window.showPitstopPersonalResult?.(result);
   });
   const quiz = [
-    ['A car travels at 72 km/h for 25 minutes. How far does it travel?', ['18 km', '24 km', '30 km', '36 km'], 2],
-    ['What is 15% of 200?', ['15', '25', '30', '35'], 2],
-    ['A 1.2 km circuit is completed 5 times. What distance is covered?', ['5 km', '6 km', '6.2 km', '7 km'], 1],
-    ['Four notebooks cost ₹120. At the same price each, what do seven cost?', ['₹180', '₹200', '₹210', '₹240'], 2],
-    ['Find the next number: 2, 6, 12, 20, 30, __', ['38', '40', '42', '44'], 2],
-    ['If 6 workers finish a task in 8 days, how long would 12 equally fast workers take?', ['2 days', '4 days', '6 days', '16 days'], 1],
-    ['What is the average of 12, 15, 18, and 23?', ['16', '17', '18', '19'], 1],
-    ['A bag has 3 red and 5 blue balls. What is the chance of drawing a red ball?', ['3/8', '5/8', '1/3', '1/2'], 0],
-    ['A number is increased by 20% from 150. What is the new number?', ['170', '175', '180', '190'], 2],
-    ['Find the next number: 3, 9, 27, 81, __', ['162', '189', '216', '243'], 3]
+    ['What does this JavaScript print?\nlet x = 1;\nfor (let i = 0; i < 4; i++) x *= 2;\nconsole.log(x + 1);', ['9', '17', '16', '33'], 1],
+    ['A stack performs push(4), push(7), push(2), pop(), pop(). What value is returned by the second pop?', ['4', '7', '2', 'The stack is empty'], 1],
+    ['A queue contains A, B, C. Dequeue once, enqueue D, then dequeue again. Which value is returned?', ['A', 'B', 'C', 'D'], 1],
+    ['Binary search on [3, 7, 11, 15, 19, 23, 27] looks for 19. Using middle index floor((low+high)/2), how many comparisons are made?', ['2', '3', '4', '5'], 1],
+    ['For (i = 0; i < n; i++) { for (j = 0; j < i; j++) { work(); } } What is the time complexity?', ['O(n)', 'O(n log n)', 'O(n²)', 'O(2ⁿ)'], 2],
+    ['A two-sum algorithm stores previously seen values in a hash map. What is its average time complexity for n values?', ['O(1)', 'O(log n)', 'O(n)', 'O(n²)'], 2],
+    ['Given a pointer to a node in a singly linked list, what is the time complexity of inserting a new node immediately after it?', ['O(1)', 'O(log n)', 'O(n)', 'O(n log n)'], 0],
+    ['A recursive function returns 1 for n ≤ 1, otherwise f(n−1) + f(n−2). What does f(4) return?', ['3', '4', '5', '8'], 2],
+    ['Which data structure is best suited for checking whether brackets are correctly nested, such as "{[()]}"?', ['Queue', 'Stack', 'Min-heap', 'Adjacency list'], 1],
+    ['Quicksort always chooses the first element as pivot. What is its worst-case time on an already sorted array?', ['O(log n)', 'O(n)', 'O(n log n)', 'O(n²)'], 3]
   ];
   let quizIndex = 0, score = 0, qualified = false, submittingQualification = false, answerLockTimer = null, quizStartedAt = 0, quizCompletedAt = 0;
   const eliminatedAnswers = quiz.map(() => new Set());
@@ -138,7 +138,12 @@
         $('joinOverlay').style.display = 'none'; $('app').classList.remove('garage-mode');
         api('resume', { method: 'POST', body: { participantId: result.participantId, raceId: result.raceId } }).then(resumed => {
           $('repairPanel').style.display = 'block'; window.dispatchEvent(new CustomEvent('pitstop:resume', { detail: resumed }));
-          if (resumed.status === 'ready') { $('quizOverlay').hidden = false; quizIndex = 0; score = 0; quizStartedAt = Date.now(); quizCompletedAt = 0; showQuestion(); }
+          if (resumed.status === 'ready') {
+            $('repairPanel').style.display = 'none';
+            $('quizOverlay').hidden = true;
+            $('showroomOverlay').hidden = false;
+            window.dispatchEvent(new Event('pitstop:showroom'));
+          }
         }).catch(err => { error.textContent = err.message || 'Could not reconnect to this race.'; button.disabled = false; button.textContent = 'ENTER THE GARAGE ↗'; $('joinOverlay').style.display = 'grid';
         });
         return;

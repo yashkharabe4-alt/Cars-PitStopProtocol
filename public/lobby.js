@@ -43,11 +43,11 @@
     $('finishCaption').textContent = 'RACE STATUS · FINAL STANDINGS';
     const results = Array.isArray(data.race.results) ? data.race.results : [];
     $('finishMessage').textContent = results.length ? 'Final score, race time, and repair answers for every driver.' : 'Results are not available yet. Refresh shortly to load the final standings.';
-    $('finishResults').innerHTML = results.map(row => {
+      $('finishResults').innerHTML = results.map(row => {
       const elapsed = row.elapsedMs == null ? 'Did not finish' : `${(row.elapsedMs / 1000).toFixed(1)} sec`;
       const status = row.status === 'finished' ? 'FINISHED' : 'DID NOT FINISH';
       const safeName = String(row.name || 'Driver').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-      return `<li><span class="finish-rank">${row.rank}.</span><span class="finish-driver">${safeName}<small>${status} · ${elapsed} · ✓ ${row.correctAnswers} correct · ✕ ${row.incorrectAnswers} incorrect</small></span><strong>${Number(row.score).toLocaleString()} pts</strong></li>`;
+      return `<li><span class="finish-rank">${row.rank}.</span><span class="finish-driver">${safeName}<small>${status} · ${elapsed} · ✓ ${row.correctAnswers} repair answers · ✕ ${row.incorrectAnswers} incorrect</small></span><strong>${Number(row.score).toLocaleString()}/100</strong></li>`;
     }).join('');
   }
   window.addEventListener('pitstop:race:ended', event => {
@@ -67,7 +67,7 @@
     ['A number is increased by 20% from 150. What is the new number?', ['170', '175', '180', '190'], 2],
     ['Find the next number: 3, 9, 27, 81, __', ['162', '189', '216', '243'], 3]
   ];
-  let quizIndex = 0, score = 0, qualified = false, submittingQualification = false, answerLockTimer = null;
+  let quizIndex = 0, score = 0, qualified = false, submittingQualification = false, answerLockTimer = null, quizStartedAt = 0, quizCompletedAt = 0;
   const eliminatedAnswers = quiz.map(() => new Set());
   let selectedColor = '#e83e32';
   function showQuestion(feedback = '') {
@@ -79,36 +79,27 @@
   }
   function submitAnswer() {
     if (submittingQualification) return;
+    if (quizIndex >= quiz.length) { submitQualification(); return; }
     const selected = document.querySelector('input[name="quizAnswer"]:checked');
     if (!selected) { $('quizFeedback').textContent = 'Select an answer to continue.'; return; }
     const isCorrect = Number(selected.value) === quiz[quizIndex][2];
-    if (!isCorrect) {
-      eliminatedAnswers[quizIndex].add(Number(selected.value));
-      showQuestion('Incorrect. That option is locked out. Wait 10 seconds before trying another answer.');
-      const submit = $('quizSubmit'), options = $('quizOptions');
-      submit.disabled = true; options.querySelectorAll('input').forEach(input => input.disabled = true);
-      let seconds = 10;
-      submit.textContent = `WAIT ${seconds}s`;
-      clearInterval(answerLockTimer);
-      answerLockTimer = setInterval(() => {
-        seconds--;
-        if (seconds > 0) { submit.textContent = `WAIT ${seconds}s`; $('quizFeedback').textContent = `Incorrect option eliminated. You can try another answer in ${seconds} seconds.`; return; }
-        clearInterval(answerLockTimer); answerLockTimer = null;
-        options.querySelectorAll('input').forEach(input => { input.disabled = eliminatedAnswers[quizIndex].has(Number(input.value)); });
-        submit.disabled = false; submit.textContent = 'LOCK ANSWER ↗';
-        $('quizFeedback').textContent = 'Choose a different option. The incorrect choice remains locked.';
-      }, 1000);
-      return;
-    }
-    score++;
+    if (isCorrect) score++;
     quizIndex++;
-    if (quizIndex < quiz.length) { showQuestion('Correct! Your answer is recorded. Continue with the next question.'); return; }
+    if (quizIndex < quiz.length) { showQuestion(isCorrect ? 'Correct! Your answer is recorded.' : 'Incorrect. Your answer is recorded as 0 points.'); return; }
+    quizCompletedAt = Date.now();
+    submitQualification();
+  }
+  function submitQualification() {
+    if (submittingQualification) return;
     submittingQualification = true;
     $('quizSubmit').disabled = true;
     $('quizOverlay').hidden = true;
     $('loadingOverlay').hidden = false;
     $('loadingMessage').textContent = 'Submitting your qualifying result…';
-    api('qualify', { method: 'POST', body: { score, raceId: sessionStorage.getItem('pitstopRaceId') } }).then(result => {
+    const durationMs = Math.max(0, quizCompletedAt - quizStartedAt);
+    const speedPoints = 30 * Math.max(0, 1 - durationMs / 300000);
+    const finalScore = Math.round(score / quiz.length * 70 + speedPoints);
+    api('qualify', { method: 'POST', body: { score: finalScore, raceId: sessionStorage.getItem('pitstopRaceId') } }).then(result => {
       qualified = true;
       if (result.waiting) $('loadingMessage').textContent = result.started ? 'QUALIFIED · YOUR RACE IS STARTING' : 'QUALIFIED · WAITING FOR THE ORGANIZER TO START THE RACE';
     }).catch(err => {
@@ -116,9 +107,12 @@
         $('loadingOverlay').hidden = true;
         $('quizOverlay').hidden = false;
         $('quizSubmit').disabled = false;
-        quizIndex = quiz.length - 1;
-        showQuestion();
-        $('quizFeedback').textContent = err.message || 'Server did not respond. Select LOCK ANSWER to retry submitting your score.';
+        quizIndex = quiz.length;
+        $('quizProgress').textContent = `COMPLETE · ${finalScore}/100`;
+        $('quizQuestion').textContent = 'Your score is ready to submit.';
+        $('quizOptions').innerHTML = '';
+        $('quizSubmit').textContent = 'RETRY SUBMISSION ↗';
+        $('quizFeedback').textContent = err.message || 'Server did not respond. Retry submitting your score.';
     });
   }
   function join() {
@@ -132,6 +126,11 @@
       sessionStorage.setItem('pitstopParticipantId', result.participantId);
       sessionStorage.setItem('pitstopSessionToken', result.sessionToken);
       sessionStorage.setItem('pitstopRaceId', result.raceId);
+      $('app').classList.remove('finished-garage');
+      $('showroomOverlay').classList.remove('race-finished');
+      $('showroomOverlay').hidden = true;
+      $('finishPanel').hidden = true;
+      $('finishPanel').classList.remove('personal-result');
       await window.pitstopSubscribeRace(result.raceId);
       if (result.raceStatus === 'running') {
         button.disabled = true; button.textContent = 'REJOINING RACE…';
@@ -139,7 +138,7 @@
         $('joinOverlay').style.display = 'none'; $('app').classList.remove('garage-mode');
         api('resume', { method: 'POST', body: { participantId: result.participantId, raceId: result.raceId } }).then(resumed => {
           $('repairPanel').style.display = 'block'; window.dispatchEvent(new CustomEvent('pitstop:resume', { detail: resumed }));
-          if (resumed.status === 'ready') { $('quizOverlay').hidden = false; quizIndex = 0; score = 0; showQuestion(); }
+          if (resumed.status === 'ready') { $('quizOverlay').hidden = false; quizIndex = 0; score = 0; quizStartedAt = Date.now(); quizCompletedAt = 0; showQuestion(); }
         }).catch(err => { error.textContent = err.message || 'Could not reconnect to this race.'; button.disabled = false; button.textContent = 'ENTER THE GARAGE ↗'; $('joinOverlay').style.display = 'grid';
         });
         return;
@@ -165,7 +164,7 @@
   });
   button.addEventListener('click', join); [nameInput, leadName, leadPhone].forEach(input => input.addEventListener('keydown', e => { if (e.key === 'Enter') join(); }));
   document.querySelectorAll('.showroom-colors button').forEach(choice => choice.addEventListener('click', () => { selectedColor = choice.dataset.color; document.documentElement.style.setProperty('--team-color', selectedColor); document.querySelectorAll('.showroom-colors button').forEach(b => b.classList.toggle('selected', b === choice)); window.dispatchEvent(new CustomEvent('pitstop:color', { detail: { color: selectedColor } })); api('color', { method: 'POST', body: { carColor: selectedColor } }).catch(err => console.warn('Could not save car color:', err)); }));
-  $('showroomContinue').addEventListener('click', () => { $('showroomOverlay').hidden = true; $('repairPanel').style.display = 'block'; $('quizOverlay').hidden = false; quizIndex = 0; score = 0; clearInterval(answerLockTimer); answerLockTimer = null; eliminatedAnswers.forEach(set => set.clear()); $('quizSubmit').disabled = false; $('quizSubmit').textContent = 'LOCK ANSWER ↗'; showQuestion(); window.dispatchEvent(new CustomEvent('pitstop:track')); });
+  $('showroomContinue').addEventListener('click', () => { $('showroomOverlay').hidden = true; $('repairPanel').style.display = 'block'; $('quizOverlay').hidden = false; quizIndex = 0; score = 0; quizStartedAt = Date.now(); quizCompletedAt = 0; clearInterval(answerLockTimer); answerLockTimer = null; eliminatedAnswers.forEach(set => set.clear()); $('quizSubmit').disabled = false; $('quizSubmit').textContent = 'LOCK ANSWER ↗'; showQuestion(); window.dispatchEvent(new CustomEvent('pitstop:track')); });
   $('quizSubmit').addEventListener('click', submitAnswer);
   $('quizOptions').addEventListener('keydown', e => { if (e.key === 'Enter') submitAnswer(); });
   $('adminOpen').addEventListener('click', () => { $('adminOverlay').hidden = false; });
@@ -204,6 +203,8 @@
   $('exportCsv').addEventListener('click',()=>downloadResults('csv'));
   const handleState = data => {
     const race = data?.race;
+    const sessionRaceId = sessionStorage.getItem('pitstopRaceId');
+    if (sessionRaceId && race?.id && race.id !== sessionRaceId) return;
     if (race?.id && race.id !== subscribedRaceId) { subscribedRaceId = race.id; window.pitstopSubscribeRace(race.id); }
     raceIsFinished=race?.status==='finished';
     if(raceIsFinished)lastFinalBoard={raceId:race.id,race};else lastFinalBoard=null;
@@ -220,7 +221,7 @@
   };
   window.addEventListener('pitstop:state', event => handleState(event.detail));
   window.addEventListener('pitstop:race:open', () => { if (qualified) $('loadingMessage').textContent = 'RACE OPEN · YOUR START IS COMING UP'; });
-  window.addEventListener('pitstop:race:final', event => { raceIsFinished=true;lastFinalBoard = event.detail; window.showPitstopFinishedGarage?.(); api('state').then(displayOfficialResults).catch(err => { $('finishMessage').textContent=`Could not load final results: ${err.message}`; }); $('raceStatusTitle').textContent='Race ended'; exportButtons.forEach(button=>button.disabled=!adminUnlocked); });
+  window.addEventListener('pitstop:race:final', event => { if (event.detail?.raceId && event.detail.raceId !== sessionStorage.getItem('pitstopRaceId')) return; raceIsFinished=true;lastFinalBoard = event.detail; window.showPitstopFinishedGarage?.(); api('state').then(displayOfficialResults).catch(err => { $('finishMessage').textContent=`Could not load final results: ${err.message}`; }); $('raceStatusTitle').textContent='Race ended'; exportButtons.forEach(button=>button.disabled=!adminUnlocked); });
   let subscribedRaceId = null;
   const savedRaceId = sessionStorage.getItem('pitstopRaceId');
   if (savedRaceId && sessionStorage.getItem('pitstopParticipantId')) window.pitstopSubscribeRace(savedRaceId);

@@ -211,7 +211,9 @@
       $('adminMessage').textContent = `Race status: ${String(race.status).toUpperCase()}`;
       $('raceStatusTitle').textContent=race.status==='finished'?'Race ended':race.status==='running'?'Race in progress':'Awaiting start';
       if (race.status === 'finished') { displayOfficialResults({race}); window.showPitstopFinishedGarage?.(); }
-      $('adminStart').disabled = race.status !== 'lobby';
+      // The server creates the next lobby on demand after a finished race.
+      $('adminStart').disabled = race.status === 'running';
+      $('adminStart').textContent = race.status === 'finished' ? 'START NEXT RACE' : 'START RACE';
       $('adminStop').disabled = race.status !== 'running';
       $('exportExcel').disabled=!adminUnlocked||!raceIsFinished;$('exportCsv').disabled=!adminUnlocked||!raceIsFinished;
     }
